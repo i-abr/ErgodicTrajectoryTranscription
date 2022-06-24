@@ -23,6 +23,7 @@ class AugmentedLagrangian(object):
                 + np.sum(lam * _eq_constr + 0.5 * (_eq_constr)**2) \
                     + 0.5 * np.sum(np.maximum(0., mu + _ineq_constr)**2 - mu**2)
             # return loss(x) + np.sum(lam * _eq_constr + 0.5 * (_eq_constr)**2) + 0.5 * np.sum(mu * np.maximum(0., mu + _ineq_constr))
+            
         dldth = jit(grad(lagrangian))
         @jit
         def step(solution):
