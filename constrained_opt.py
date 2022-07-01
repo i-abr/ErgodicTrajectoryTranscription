@@ -4,7 +4,7 @@ from jax import grad, jacfwd, vmap, jit, hessian
 import jax.numpy as np
 
 class AugmentedLagrangian(object):
-    def __init__(self, x0, loss, eq_constr, ineq_constr, args, step_size=1e-3, c=1.0):
+    def __init__(self, x0, loss, eq_constr, ineq_constr, args=None, step_size=1e-3, c=1.0):
         self.loss = loss 
         self.eq_constr   = eq_constr
         self.ineq_constr = ineq_constr
@@ -29,10 +29,7 @@ class AugmentedLagrangian(object):
         # @jit
         def step(solution, args):
             _dldx = dldth(solution, args)
-            # _d2dx2 = d2dth2(solution, args)
-            # _d2dx2 = np.outer(_dldx, _dldx)
-            # _eps = np.linalg.norm(_dldx['x'])
-            _eps=0.3
+            _eps = np.linalg.norm(_dldx['x'])
             solution['x']   = solution['x'] - step_size * _dldx['x']
             solution['lam'] = solution['lam'] + c*eq_constr(solution['x'], args)
             solution['mu']  = np.maximum(0, solution['mu'] + c*ineq_constr(solution['x'], args))
