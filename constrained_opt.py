@@ -12,6 +12,7 @@ class AugmentedLagrangian(object):
         _ineq_constr     = ineq_constr(x0, args)
         lam = np.zeros(_eq_constr.shape)
         mu  = np.zeros(_ineq_constr.shape)
+        self._x_shape = x0.shape
         self.solution = {'x' : x0, 'lam' : lam, 'mu' : mu}
         def lagrangian(solution, args):
             x   = solution['x']
@@ -25,10 +26,13 @@ class AugmentedLagrangian(object):
             # return loss(x) + np.sum(lam * _eq_constr + 0.5 * (_eq_constr)**2) + 0.5 * np.sum(mu * np.maximum(0., mu + _ineq_constr))
 
         dldth = jit(grad(lagrangian))
-        @jit
+        # @jit
         def step(solution, args):
             _dldx = dldth(solution, args)
-            _eps = np.linalg.norm(_dldx['x'])
+            # _d2dx2 = d2dth2(solution, args)
+            # _d2dx2 = np.outer(_dldx, _dldx)
+            # _eps = np.linalg.norm(_dldx['x'])
+            _eps=0.3
             solution['x']   = solution['x'] - step_size * _dldx['x']
             solution['lam'] = solution['lam'] + c*eq_constr(solution['x'], args)
             solution['mu']  = np.maximum(0, solution['mu'] + c*ineq_constr(solution['x'], args))
