@@ -7,7 +7,7 @@ class SingleIntegrator(object):
         self.m = 2
         def f(x, u):
             B = np.array([
-                [1.0,0.],
+                [1.,0.],
                 [0.,1.]
             ])
             # B = np.array([

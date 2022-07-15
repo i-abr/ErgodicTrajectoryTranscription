@@ -1,6 +1,6 @@
 import jax
 from functools import partial
-from jax import grad, jacfwd, vmap, jit, hessian
+from jax import value_and_grad, grad, jacfwd, vmap, jit, hessian
 from jax.flatten_util import ravel_pytree
 import jax.numpy as np
 
@@ -24,6 +24,7 @@ class AugmentedLagrangian(object):
         self._x_shape = x0.shape
         self.solution = {'x' : x0, 'lam' : lam, 'mu' : mu}
         self.avg_sq_grad = np.zeros_like(x0)
+        self._prev_val = None
         # self._flat_solution, self._unravel = ravel_pytree(self.solution)
         def lagrangian(solution, args):
             # solution = self._unravel(flat_solution)
@@ -36,32 +37,39 @@ class AugmentedLagrangian(object):
                 + np.sum(lam * _eq_constr + 0.5 * (_eq_constr)**2) \
                 + 0.5 * np.sum(np.maximum(0., mu + _ineq_constr)**2 - mu**2)
 
-        dldx = jit(grad(lagrangian))
+        val_dldx = jit(value_and_grad(lagrangian))
         gamma=0.9
         eps=1e-8
         @jit
         def step(solution, args, avg_sq_grad):
-            _dldx   = dldx(solution, args)
-            _eps    = np.linalg.norm(_dldx['x'])
+            _val, _dldx   = val_dldx(solution, args)
+            # _eps    = np.linalg.norm(_dldx['x'])
             avg_sq_grad = avg_sq_grad * gamma + np.square(_dldx['x']) * (1. - gamma)
             solution['x']   = solution['x'] - step_size * _dldx['x'] / np.sqrt(avg_sq_grad + eps)
             solution['lam'] = solution['lam'] + c*eq_constr(solution['x'], args)
             solution['mu']  = np.maximum(0, solution['mu'] + c*ineq_constr(solution['x'], args))
-            return solution, _eps, avg_sq_grad
+            return solution, _val, avg_sq_grad
 
         self.lagrangian      = lagrangian
-        self.grad_lagrangian = dldx
+        self.grad_lagrangian = val_dldx
         self.step = step
 
     def get_solution(self):
         return self.solution
         # return self._unravel(self._flat_solution)
 
-    def solve(self, args=None, max_iter=10000, eps=1e-3):
+    def solve(self, args=None, max_iter=10000, eps=1e-6):
         if args is None:
             args = self.def_args
+        _eps = 1.0
         for k in range(max_iter):
-            self.solution, _eps, self.avg_sq_grad = self.step(self.solution, args, self.avg_sq_grad)
+            self.solution, _val, self.avg_sq_grad = self.step(self.solution, args, self.avg_sq_grad)
+            if self._prev_val is None:
+                self._prev_val = _val
+            else:
+                # print(_val)
+                _eps = np.abs(_val - self._prev_val)
+                self._prev_val = _val
             if _eps < eps:
                 print('done in ', k, ' iterations')
                 break
